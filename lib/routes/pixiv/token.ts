@@ -1,7 +1,9 @@
 import { config } from '@/config';
+import cache from '@/utils/cache';
 import logger from '@/utils/logger';
-import got from './pixiv-got';
+
 import { maskHeader } from './constants';
+import got from './pixiv-got';
 
 let token = null;
 
@@ -11,38 +13,31 @@ const authorizationInfo = {
     hash_secret: '28c1fdd170a5204386cb1313c7077b34f83e4aaf4aa829ce78c231e05b0bae2c',
 };
 
-const refreshToken = (tryGet) =>
-    tryGet(
+const refreshToken = () =>
+    cache.tryGet(
         'pixiv:accessToken',
         () =>
-            got
-                .post('https://oauth.secure.pixiv.net/auth/token', {
-                    form: {
-                        ...authorizationInfo,
-                        get_secure_url: 1,
-                        grant_type: 'refresh_token',
-                        refresh_token: config.pixiv.refreshToken,
-                    },
-                    headers: {
-                        ...maskHeader,
-                    },
-                    responseType: 'json',
-                    resolveBodyOnly: true,
-                })
-                .catch((error) => {
-                    logger.error('Pixiv refresh token failed.');
-                    logger.error(error);
-                }),
+            got.post('https://oauth.secure.pixiv.net/auth/token', {
+                form: {
+                    ...authorizationInfo,
+                    get_secure_url: 1,
+                    grant_type: 'refresh_token',
+                    refresh_token: config.pixiv.refreshToken,
+                },
+                headers: {
+                    ...maskHeader,
+                },
+            }),
         3600,
         false
     );
 
-async function getToken(tryGet) {
-    const result = await refreshToken(tryGet);
+async function getToken() {
+    const { data } = await refreshToken();
     // let expireTime;
-    if (result && result.access_token) {
+    if (data && data.access_token) {
         logger.debug('Pixiv refresh token success.');
-        token = result.access_token;
+        token = data.access_token;
         // expireTime = result.expires_in;
     }
     // } else {
